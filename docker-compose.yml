@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Application CashFlow (Apache + PHP)
+  app:
+    build: .
+    container_name: cashflow_app
+    ports:
+      - "8085:80"
+    volumes:
+      - ./src:/var/www/html/cashflow/src
+      - ./public:/var/www/html/cashflow/public
+      - ./exports:/var/www/html/cashflow/exports
+      - ./config.php:/var/www/html/cashflow/config.php
+    environment:
+      - APACHE_RUN_USER=www-data
+      - APACHE_RUN_GROUP=www-data
+      - DB_HOST=db
+      - DB_NAME=cashflow_db
+      - DB_USER=sami
+      - DB_PASS=Sm/131301
+      - BASE_URL=http://localhost:8085/cashflow
+    depends_on:
+      - db
+    networks:
+      - cashflow_network
+    restart: unless-stopped
+
+  # Base de données MySQL
+  db:
+    image: mysql:8.0
+    container_name: cashflow_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: cashflow_db
+      MYSQL_USER: sami
+      MYSQL_PASSWORD: Sm/131301
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database.sql:/docker-entrypoint-initdb.d/database.sql:ro
+    ports:
+      - "3309:3306"
+    networks:
+      - cashflow_network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: cashflow_phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: sami
+      PMA_PASSWORD: Sm/131301
+      MYSQL_ROOT_PASSWORD: Sm/131301
+      UPLOAD_LIMIT: 50M
+    ports:
+      - "8084:80"
+    depends_on:
+      - db
+    networks:
+      - cashflow_network
+    restart: unless-stopped
+    volumes:
+      - phpmyadmin_sessions:/sessions
+
+volumes:
+  db_data:
+    driver: local
+  phpmyadmin_sessions:
+    driver: local
+
+networks:
+  cashflow_network:
+    driver: bridge
