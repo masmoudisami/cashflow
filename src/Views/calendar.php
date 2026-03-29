@@ -49,33 +49,89 @@ function getDayName($dayNum) {
     <title>Calendrier - CashFlow</title>
     <link rel="stylesheet" href="public/css/style.css">
     <style>
-        .matrix-calendar-container {
-            overflow-x: auto;
+        /* Aligner tout le contenu à gauche */
+        .container {
+            margin-left: 0 !important;
+            margin-right: auto !important;
+            padding-left: 1rem !important;
+        }
+
+        .matrix-calendar-wrapper {
             margin-top: 1.5rem;
-            background: #fff;
-            border-radius: 8px;
-            padding: 1rem;
+            /* pas de background ni padding : suppression du cadre blanc */
+        }
+
+        .matrix-calendar-container {
+            overflow: visible;
+            position: relative;
         }
         
         .matrix-table {
-            width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.75rem;
-            min-width: 1400px;
+            margin: 0;   /* aligné à gauche */
         }
         
         .matrix-table th,
         .matrix-table td {
-            border: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
             padding: 6px 4px;
             text-align: center;
             min-width: 50px;
+        }
+
+        /* Bordure gauche uniquement sur la première colonne */
+        .matrix-table th:first-child,
+        .matrix-table td:first-child {
+            border-left: 1px solid #ddd;
+        }
+
+        /* Bordure haute uniquement sur le premier thead tr */
+        .matrix-table thead tr:first-child th {
+            border-top: 1px solid #ddd;
         }
         
         .matrix-table th {
             background: #34495e;
             color: #fff;
             font-weight: 600;
+        }
+
+        /* ── STICKY : ligne des dates ── */
+        .matrix-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        /* ── STICKY : première colonne ── */
+        .matrix-table th:first-child,
+        .matrix-table td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+        }
+
+        /* Coin supérieur gauche : au-dessus des deux axes */
+        .matrix-table thead th:first-child {
+            z-index: 5;
+        }
+
+        /* Ombres visuelles */
+        .matrix-table thead th {
+            box-shadow: 0 3px 6px rgba(0,0,0,0.18);
+        }
+        .matrix-table td:first-child {
+            box-shadow: 3px 0 6px rgba(0,0,0,0.10);
+        }
+
+        /* will-change pour la perf, sans écraser sticky */
+        .matrix-table thead th,
+        .matrix-table td:first-child,
+        .matrix-table th:first-child {
+            will-change: transform;
         }
         
         .matrix-table th.day-header {
@@ -126,10 +182,6 @@ function getDayName($dayNum) {
         .matrix-table td.cell.weekend { background: #f8f9fa; }
         .matrix-table td.cell.today { border: 2px solid #27ae60; }
         
-        .block-revenus th.block-header { background: #3498db; }
-        .block-debits-directs th.block-header { background: #e74c3c; }
-        .block-debits-differes th.block-header { background: #f39c12; }
-        
         .category-row { background: #fff; }
         
         .category-name {
@@ -137,6 +189,25 @@ function getDayName($dayNum) {
             padding-left: 15px;
             font-weight: 600;
             color: #2c3e50;
+            background: #fff;  /* fond opaque pour masquer le contenu derrière lors du scroll */
+        }
+
+        /* Fond opaque pour les en-têtes de blocs (ligne full-width) en sticky left */
+        .block-revenus th.block-header { background: #3498db; }
+        .block-debits-directs th.block-header { background: #e74c3c; }
+        .block-debits-differes th.block-header { background: #f39c12; }
+
+        /* Ces lignes de bloc s'étendent sur toute la largeur — pas besoin de sticky left séparé */
+        .block-header-row th {
+            position: static !important;
+        }
+
+        /* Fond opaque pour les lignes total en sticky left */
+        .total-row td:first-child {
+            background: #ecf0f1;
+        }
+        .total-row.solde-journalier td:first-child {
+            background: #8e44ad;
         }
         
         .total-row {
@@ -235,6 +306,78 @@ function getDayName($dayNum) {
             border-bottom: 1px solid #eee;
             padding-bottom: 5px;
         }
+        /* ── IMPRESSION PDF : affiche la totalité de la matrice ── */
+        @media print {
+            /* Masquer tout sauf la table */
+            nav,
+            .budget-section,
+            .balance-info,
+            .nav-month,
+            .actions,
+            #transactionPopup {
+                display: none !important;
+            }
+
+            /* Supprimer les contraintes de scroll */
+            .matrix-calendar-wrapper,
+            .matrix-calendar-container {
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
+
+            /* La table prend toute la largeur et se déroule sur autant de pages que nécessaire */
+            .matrix-table {
+                width: 100% !important;
+                min-width: unset !important;
+                font-size: 0.55rem !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto;
+            }
+
+            .matrix-table th,
+            .matrix-table td {
+                border: 1px solid #999 !important;
+                padding: 3px 2px !important;
+                min-width: unset !important;
+            }
+
+            /* Annuler le JS freeze (transform) pour l impression */
+            .matrix-table thead th,
+            .matrix-table td:first-child,
+            .matrix-table th:first-child {
+                transform: none !important;
+                position: static !important;
+                box-shadow: none !important;
+                will-change: auto !important;
+            }
+
+            /* Répéter l en-tête sur chaque page imprimée */
+            thead {
+                display: table-header-group;
+            }
+
+            /* Éviter les coupures au milieu d une ligne */
+            tr {
+                page-break-inside: avoid;
+            }
+
+            body, html {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .container {
+                overflow: visible !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -308,6 +451,7 @@ function getDayName($dayNum) {
             <a href="<?= BASE_URL ?>/?page=calendar&y=<?= date('Y', strtotime("$year-$month-01 +1 month")) ?>&m=<?= (int)date('m', strtotime("$year-$month-01 +1 month")) ?>">Mois Suivant →</a>
         </div>
 
+        <div class="matrix-calendar-wrapper">
         <div class="matrix-calendar-container">
             <table class="matrix-table">
                 <thead>
@@ -562,6 +706,7 @@ function getDayName($dayNum) {
                 </tbody>
             </table>
         </div>
+        </div>
 
         <div class="actions">
             <a href="<?= BASE_URL ?>/?page=transactions" class="btn">Voir Toutes les Transactions</a>
@@ -752,6 +897,29 @@ function getDayName($dayNum) {
         document.getElementById('popupAmount').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') { saveTransaction(); }
         });
+
+        // ── Freeze JS : fige la ligne des dates sous la navbar au scroll de la page ──
+        (function() {
+            var table = document.querySelector('.matrix-table');
+            if (!table) return;
+
+            // Hauteur de la navbar fixe (menu Accueil, Transactions…)
+            var nav = document.querySelector('nav');
+
+            function applyFreeze() {
+                var navH     = nav ? nav.getBoundingClientRect().height : 0;
+                var tableTop = table.getBoundingClientRect().top + window.scrollY;
+                var scrollY  = window.scrollY;
+                var offsetY  = Math.max(0, scrollY + navH - tableTop);
+
+                table.querySelectorAll('thead th').forEach(function(th) {
+                    th.style.transform = 'translateY(' + offsetY + 'px)';
+                });
+            }
+
+            window.addEventListener('scroll', applyFreeze, { passive: true });
+            applyFreeze();
+        })();
     </script>
 </body>
 </html>
